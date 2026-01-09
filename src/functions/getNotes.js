@@ -1,13 +1,35 @@
-const { app } = require('@azure/functions');
+const { app } = require("@azure/functions");
+const container = require("../shared/cosmos");
 
-app.http('getNotes', {
-    methods: ['GET', 'POST'],
-    authLevel: 'anonymous',
+app.http("getNotes", {
+    methods: ["GET"],
+    authLevel: "anonymous",
     handler: async (request, context) => {
-        context.log(`Http function processed request for url "${request.url}"`);
+        try {
+            const query = {
+                query: `
+    SELECT 
+      c.id,
+      c.title,
+      c.body,
+      c.createdAt
+    FROM c
+    ORDER BY c.createdAt DESC
+  `
+            };
 
-        const name = request.query.get('name') || await request.text() || 'world';
+            const { resources } = await container.items.query(query).fetchAll();
 
-        return { body: `Hello, ${name}!` };
+            return {
+                status: 200,
+                jsonBody: resources
+            };
+        } catch (err) {
+            context.error(err);
+            return {
+                status: 500,
+                body: "Failed to fetch notes"
+            };
+        }
     }
 });
